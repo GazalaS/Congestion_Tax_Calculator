@@ -1,138 +1,188 @@
 ﻿using Congestion.Calculator.Model;
 using Congestion.Calculator.Model.Calendar;
 using Congestion.Calculator.Util;
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace Congestion.Calculator.UnitTest.UtilTest
+namespace Congestion.Calculator.Tests
 {
+    [TestFixture]
     public class DateUtilTest
     {
-        private WorkingCalendar _workingCalendar;
-        private HolidayMonths _holidayMonths;
-        private List<HolidayCalendar> _holidayCalendar;
+        private List<WorkingCalendar> _workingCalendars;
+        private List<HolidayMonths> _holidayMonths;
+        private List<HolidayCalendar> _holidayCalendars;
         private CityPreference _cityPreference;
 
         [SetUp]
         public void Setup()
         {
-            //Arrange
-            _workingCalendar = new WorkingCalendar
+            // Arrange: Setup working calendars with configurations for weekends and holidays
+            _workingCalendars = new List<WorkingCalendar>
             {
-                IsMonday = true,
-                IsTuesday = true,
-                IsWednesday = true,
-                IsThursday = true,
-                IsFriday = true,
-                IsSaturday = false,
-                IsSunday = false
-            };
-            _holidayMonths = new HolidayMonths
-            {
-                IsJuly = true,
+                new WorkingCalendar
+                {
+                    Monday = WorkingDayType.Normal,
+                    Tuesday = WorkingDayType.Normal,
+                    Wednesday = WorkingDayType.Normal,
+                    Thursday = WorkingDayType.Normal,
+                    Friday = WorkingDayType.Normal,
+                    Saturday = WorkingDayType.Weekend,
+                    Sunday = WorkingDayType.Weekend
+                }
             };
 
-            _holidayCalendar = new List<HolidayCalendar>
-                            {
-                                new HolidayCalendar { Date = new DateTime(2013, 01, 01)},
-                                new HolidayCalendar { Date = new DateTime(2013, 12, 25)},
-                            };
+            _holidayMonths = new List<HolidayMonths>
+            {
+                new HolidayMonths { ActiveHolidayMonths = new List<Month> { Month.July, Month.December } }
+            };
+
+            _holidayCalendars = new List<HolidayCalendar>
+            {
+                new HolidayCalendar { StartDate = new DateTime(2023, 12, 24), EndDate = new DateTime(2023, 12, 26) },
+                new HolidayCalendar { StartDate = new DateTime(2023, 1, 1), EndDate = new DateTime(2023, 1, 1) }
+            };
 
             _cityPreference = new CityPreference
             {
-                NumberOfTaxFreeDaysAfterHoliday = 1,
+                NumberOfTaxFreeDaysAfterHoliday = 2,
                 NumberOfTaxFreeDaysBeforeHoliday = 1,
                 MaxTaxPerDay = 60,
-                SingleChargeIntervalInMin = 60,
+                SingleChargeIntervalInMin = 60
             };
         }
 
         [Test]
-        public void when_date_isWeekend_then_return_true()
+        public void IsWeekend_WhenDateIsWeekend_ShouldReturnTrue()
         {
-            //Arrange
-            var date = new DateTime(2013, 3, 24, 14, 25, 00);
-            //Act
-            var actual = DateUtil.IsWeekend(_workingCalendar, date);
+            // Arrange
+            var date = new DateTime(2023, 7, 8); // Saturday
+
+            // Act
+            var isWeekend = DateUtil.IsWeekend(_workingCalendars, date);
+
             // Assert
-            Assert.That(actual, Is.EqualTo(true));
+            Assert.That(isWeekend, Is.True);
         }
 
         [Test]
-        public void when_date_isWeekday_then_return_false()
+        public void IsWeekend_WhenDateIsWeekday_ShouldReturnFalse()
         {
-            //Arrange
-            var date = new DateTime(2013, 1, 14, 21, 00, 00);
-            //Act
-            var actual = DateUtil.IsWeekend(_workingCalendar, date);
+            // Arrange
+            var date = new DateTime(2023, 7, 5); // Wednesday
+
+            // Act
+            var isWeekend = DateUtil.IsWeekend(_workingCalendars, date);
+
             // Assert
-            Assert.That(actual, Is.EqualTo(false));
+            Assert.That(isWeekend, Is.False);
         }
 
-        [TestCase(1, ExpectedResult = false)]
         [TestCase(7, ExpectedResult = true)]
-        public bool check_if_month_isHolidayMonth_then_return_expectedresult(int month)
+        [TestCase(12, ExpectedResult = true)]
+        [TestCase(6, ExpectedResult = false)]
+        public bool IsHolidayMonth_ShouldReturnExpectedResult(int month)
         {
-            return DateUtil.IsHolidayMonth(_holidayMonths, month);
+            // Act & Assert
+            return DateUtil.IsHolidayMonth(_holidayMonths, new DateTime(2023, month, 1));
         }
 
         [Test]
-        public void when_date_isPerOrPostOrInPublicHoliday_then_return_true()
+        public void IsPerOrPostOrInPublicHoliday_WhenDateIsDuringHoliday_ShouldReturnTrue()
         {
-            //Arrange
-            var date = new DateTime(2013, 1, 2, 21, 00, 00);
-            //Act
-            var actual = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendar, _cityPreference);
-            //Assert
-            Assert.That(actual, Is.EqualTo(true));
+            // Arrange
+            var date = new DateTime(2023, 12, 25); // Christmas Day
+
+            // Act
+            var isHoliday = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendars, _cityPreference);
+
+            // Assert
+            Assert.That(isHoliday, Is.True);
         }
 
         [Test]
-        public void when_date_isPerOrPostOrInPublicHoliday_then_return_false()
+        public void IsPerOrPostOrInPublicHoliday_WhenDateIsPreTaxFreeDay_ShouldReturnTrue()
         {
-            //Arrange
-            var date = new DateTime(2013, 1, 3, 21, 00, 00);
-            //Act
-            var actual = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendar, _cityPreference);
-            //Assert
-            Assert.IsFalse(actual);
+            // Arrange
+            var date = new DateTime(2023, 12, 23); // 1 day before holiday start
+
+            // Act
+            var isHoliday = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendars, _cityPreference);
+
+            // Assert
+            Assert.That(isHoliday, Is.True);
         }
 
         [Test]
-        public void when_date_is_in_between_including_endPoints_return_true()
+        public void IsPerOrPostOrInPublicHoliday_WhenDateIsPostTaxFreeDay_ShouldReturnTrue()
         {
-            //Arrange
-            var min = new DateTime(2013, 1, 1);
-            var max = new DateTime(2013, 1, 3);
-            var date = new DateTime(2013, 1, 2);
-            //Act
-            var actual = DateUtil.IsDateInBetweenIncludingEndPoints(min, max, date);
+            // Arrange
+            var date = new DateTime(2023, 12, 28); // 2 days after holiday end
 
-            //Assert
-            Assert.IsTrue(actual);
+            // Act
+            var isHoliday = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendars, _cityPreference);
+
+            // Assert
+            Assert.That(isHoliday, Is.True);
         }
 
         [Test]
-        public void when_date_is_not_in_between_including_endPoints_return_false()
+        public void IsPerOrPostOrInPublicHoliday_WhenDateIsOutsideHolidayPeriod_ShouldReturnFalse()
         {
-            //Arrange
-            var min = new DateTime(2013, 1, 1);
-            var max = new DateTime(2013, 1, 3);
-            var date = new DateTime(2013, 1, 4);
-            //Act
-            var actual = DateUtil.IsDateInBetweenIncludingEndPoints(min, max, date);
+            // Arrange
+            var date = new DateTime(2023, 12, 29); // Outside of tax-free and holiday
 
-            //Assert
-            Assert.IsFalse(actual);
+            // Act
+            var isHoliday = DateUtil.IsPerOrPostOrInPublicHoliday(date, _holidayCalendars, _cityPreference);
+
+            // Assert
+            Assert.That(isHoliday, Is.False);
         }
 
         [Test]
-        public void when_dateformat_datetime_remove_time_component()
+        public void IsDateInBetweenIncludingEndpoints_WhenDateIsBetween_ShouldReturnTrue()
         {
-            var date = new DateTime(2013, 1, 3, 21, 00, 00);
-            var expected = "2013-01-03";
-            //Act
-            var actual = DateUtil.RemoveTime(date).ToString();
-            //Assert
-            Assert.AreEqual(expected, actual);
+            // Arrange
+            var start = new DateTime(2023, 12, 24);
+            var end = new DateTime(2023, 12, 26);
+            var date = new DateTime(2023, 12, 25);
+
+            // Act
+            var isBetween = DateUtil.IsDateInBetweenIncludingEndPoints(start, end, date);
+
+            // Assert
+            Assert.That(isBetween, Is.True);
+        }
+
+        [Test]
+        public void IsDateInBetweenIncludingEndpoints_WhenDateIsNotBetween_ShouldReturnFalse()
+        {
+            // Arrange
+            var start = new DateTime(2023, 12, 24);
+            var end = new DateTime(2023, 12, 26);
+            var date = new DateTime(2023, 12, 27);
+
+            // Act
+            var isBetween = DateUtil.IsDateInBetweenIncludingEndPoints(start, end, date);
+
+            // Assert
+            Assert.That(isBetween, Is.False);
+        }
+
+        [Test]
+        public void RemoveTime_ShouldRemoveTimeFromDate()
+        {
+            // Arrange
+            var date = new DateTime(2023, 12, 25, 15, 30, 45);
+            var expected = "2023-12-25";
+
+            // Act
+            var result = DateUtil.RemoveTime(date);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(expected));
         }
     }
 }

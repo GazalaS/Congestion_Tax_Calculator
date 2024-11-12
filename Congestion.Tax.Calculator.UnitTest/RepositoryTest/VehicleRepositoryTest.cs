@@ -4,125 +4,124 @@ using Moq;
 
 namespace Congestion.Calculator.UnitTest.RepositoryTest
 {
+    [TestFixture]
     public class VehicleRepositoryTest
     {
-        private Mock<IVehicleRepository> _vehicleRepositoryMoq;
+        private Mock<IVehicleRepository> _vehicleRepositoryMock;
         private List<Vehicle> _taxExemptVehicles;
-        private static Vehicle _emergencyVehicle = new Vehicle() { Name = "Emergency" };
-        private static Vehicle _otherVehicle = new Vehicle() { Name = "Other" };
+        private static readonly Vehicle EmergencyVehicle = new Vehicle { Name = "Emergency" };
+        private static readonly Vehicle OtherVehicle = new Vehicle { Name = "Other" };
 
         [SetUp]
         public void Setup()
         {
-            //Arrange
+            // Arrange
+            _vehicleRepositoryMock = new Mock<IVehicleRepository>();
 
-            _vehicleRepositoryMoq = new Mock<IVehicleRepository>();
-            _vehicleRepositoryMoq
-                .Setup(r => r.GetVehicleType("Emergency"))
-                .Returns(new Vehicle
+            _vehicleRepositoryMock
+                .Setup(r => r.GetVehicleTypeAsync("Emergency"))
+                .ReturnsAsync(new Vehicle
                 {
-                    Id = 1,
+                    VehicleId = 1,
                     Name = "Emergency"
-                }
-            );
+                });
 
-            _vehicleRepositoryMoq
-                .Setup(r => r.isValidVehicle(_emergencyVehicle))
-                .Returns(true);
+            _vehicleRepositoryMock
+                .Setup(r => r.isValidVehicleAsync(EmergencyVehicle))
+                .ReturnsAsync(true);
 
-            _vehicleRepositoryMoq
-                .Setup(r => r.isValidVehicle(_otherVehicle))
-                .Returns(false);
+            _vehicleRepositoryMock
+                .Setup(r => r.isValidVehicleAsync(OtherVehicle))
+                .ReturnsAsync(false);
 
             _taxExemptVehicles = new List<Vehicle>
-                            {
-                                new Vehicle{ Name = "Emergency"},
-                                new Vehicle{ Name = "Bus"},
-                                new Vehicle{ Name = "Diplomat"},
-                                new Vehicle{ Name = "Motorcycle"},
-                                new Vehicle{ Name = "Military"},
-                                new Vehicle{ Name = "Foreign"},
-                            };
+            {
+                new Vehicle { Name = "Emergency" },
+                new Vehicle { Name = "Bus" },
+                new Vehicle { Name = "Diplomat" },
+                new Vehicle { Name = "Motorcycle" },
+                new Vehicle { Name = "Military" },
+                new Vehicle { Name = "Foreign" },
+            };
 
-            _vehicleRepositoryMoq
-               .Setup(r => r.isTollFreeVehicle(_taxExemptVehicles, _emergencyVehicle))
-               .Returns(true);
+            _vehicleRepositoryMock
+               .Setup(r => r.IsTollFreeVehicleAsync(_taxExemptVehicles, EmergencyVehicle))
+               .ReturnsAsync(true);
 
-            _vehicleRepositoryMoq
-                .Setup(r => r.isTollFreeVehicle(_taxExemptVehicles, _otherVehicle))
-                .Returns(false);
+            _vehicleRepositoryMock
+               .Setup(r => r.IsTollFreeVehicleAsync(_taxExemptVehicles, OtherVehicle))
+               .ReturnsAsync(false);
         }
 
         [TestCase("Emergency")]
-        public void when_vehiclename_is_exist_then_return_Vehicle(string vehicleName)
+        public async Task When_VehicleName_Exists_Then_Return_Vehicle(string vehicleName)
         {
-            //Act
-            var actual = _vehicleRepositoryMoq.Object.GetVehicleType(vehicleName);
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.GetVehicleTypeAsync(vehicleName);
 
             // Assert
-            _vehicleRepositoryMoq.Verify(x => x.GetVehicleType(vehicleName));
-            Assert.IsInstanceOf<Vehicle>(actual);
-            Assert.IsNotNull(actual);
-            Assert.That(vehicleName, Is.EqualTo(actual.Name));
+            Assert.That(actual, Is.Not.Null, "Expected a valid vehicle but got null.");
+            Assert.That(actual, Is.InstanceOf<Vehicle>(), "Expected result to be of type Vehicle.");
+            Assert.That(actual.Name, Is.EqualTo(vehicleName), $"Expected vehicle name '{vehicleName}' but got '{actual.Name}'.");
+
+            _vehicleRepositoryMock.Verify(x => x.GetVehicleTypeAsync(vehicleName), Times.Once);
         }
-        
+
         [TestCase("Subway")]
         [TestCase("")]
         [TestCase(" ")]
-        public void when_vehiclename_is_doesnot_exist_then_return_Null(string vehicleName)
+        public async Task When_VehicleName_DoesNot_Exist_Then_Return_Null(string vehicleName)
         {
-            //Act
-            var actual = _vehicleRepositoryMoq.Object.GetVehicleType(vehicleName);
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.GetVehicleTypeAsync(vehicleName);
 
             // Assert
-            _vehicleRepositoryMoq.Verify(x => x.GetVehicleType(vehicleName));
-            Assert.IsNull(actual);
+            Assert.That(actual, Is.Null, $"Expected null for vehicle name '{vehicleName}' but got a non-null value.");
+            _vehicleRepositoryMock.Verify(x => x.GetVehicleTypeAsync(vehicleName), Times.Once);
         }
 
         [Test]
-        public void when_vehicle_isvalid_then_return_true()
+        public async Task When_Vehicle_Is_Valid_Then_Return_True()
         {
-            //Act
-            var actual = _vehicleRepositoryMoq.Object.isValidVehicle(_emergencyVehicle);          
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.isValidVehicleAsync(EmergencyVehicle);
 
             // Assert
-            Assert .AreEqual(true, actual);
-            _vehicleRepositoryMoq.Verify(x => x.isValidVehicle(_emergencyVehicle));
+            Assert.That(actual, Is.True, "Expected true for valid vehicle but got false.");
+            _vehicleRepositoryMock.Verify(x => x.isValidVehicleAsync(EmergencyVehicle), Times.Once);
         }
 
         [Test]
-        public void when_vehicle_isInvalid_then_return_false()
+        public async Task When_Vehicle_Is_Invalid_Then_Return_False()
         {
-            //Act
-            var actual = _vehicleRepositoryMoq.Object.isValidVehicle(_otherVehicle);
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.isValidVehicleAsync(OtherVehicle);
 
             // Assert
-            Assert.AreEqual(false, actual);
-            _vehicleRepositoryMoq.Verify(x => x.isValidVehicle(_otherVehicle));
+            Assert.That(actual, Is.False, "Expected false for invalid vehicle but got true.");
+            _vehicleRepositoryMock.Verify(x => x.isValidVehicleAsync(OtherVehicle), Times.Once);
         }
 
         [Test]
-        public void when_vehicle_isToolfree_then_return_true()
+        public async Task When_Vehicle_Is_TollFree_Then_Return_True()
         {
-            //Act           
-            var actual= _vehicleRepositoryMoq.Object.isTollFreeVehicle(_taxExemptVehicles, _emergencyVehicle);
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.IsTollFreeVehicleAsync(_taxExemptVehicles, EmergencyVehicle);
 
             // Assert
-            Assert.AreEqual(true, actual);
-            _vehicleRepositoryMoq.Verify(x => x.isTollFreeVehicle(_taxExemptVehicles, _emergencyVehicle));
+            Assert.That(actual, Is.True, "Expected true for toll-free vehicle but got false.");
+            _vehicleRepositoryMock.Verify(x => x.IsTollFreeVehicleAsync(_taxExemptVehicles, EmergencyVehicle), Times.Once);
         }
 
         [Test]
-        public void when_vehicle_isNotToolfree_then_return_false()
+        public async Task When_Vehicle_Is_Not_TollFree_Then_Return_False()
         {
-            //Act
-            var actual = _vehicleRepositoryMoq.Object.isTollFreeVehicle(_taxExemptVehicles, _otherVehicle);
+            // Act
+            var actual = await _vehicleRepositoryMock.Object.IsTollFreeVehicleAsync(_taxExemptVehicles, OtherVehicle);
 
             // Assert
-            Assert.AreEqual(false, actual);
-            _vehicleRepositoryMoq.Verify(x => x.isTollFreeVehicle(_taxExemptVehicles, _otherVehicle));
+            Assert.That(actual, Is.False, "Expected false for non-toll-free vehicle but got true.");
+            _vehicleRepositoryMock.Verify(x => x.IsTollFreeVehicleAsync(_taxExemptVehicles, OtherVehicle), Times.Once);
         }
     }
-
 }
-
